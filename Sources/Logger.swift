@@ -10,10 +10,10 @@ import Foundation
 
 public enum LogLevel: Int {
     case Debug = 1
-    case Info
-    case Warn
-    case Error
-    case Fatal
+    case Info = 2
+    case Warn = 3
+    case Error = 4
+    case Fatal = 5
 }
 
 public class Logger {
@@ -59,7 +59,7 @@ public class Logger {
     }
     
     public func debug(_ items: Any..., file: String = #file, line: Int = #line, function: String = #function) {
-        if logLevel.rawValue > LogLevel.Debug.rawValue {
+        if LogLevel.Debug.rawValue < self.logLevel.rawValue {
             return
         }
         
@@ -68,7 +68,7 @@ public class Logger {
     }
     
     public func info(_ items: Any..., file: String = #file, line: Int = #line, function: String = #function) {
-        if logLevel.rawValue > LogLevel.Info.rawValue {
+        if LogLevel.Info.rawValue < self.logLevel.rawValue {
             return
         }
         let msg = formatter.format(level: LogLevel.Info, items: items, separator: self.seperator, terminator: self.terminator, file: file, line: line, function: function, date: Date())
@@ -76,7 +76,7 @@ public class Logger {
     }
     
     public func warn(_ items: Any..., file: String = #file, line: Int = #line, function: String = #function) {
-        if logLevel.rawValue > LogLevel.Warn.rawValue {
+        if LogLevel.Warn.rawValue < self.logLevel.rawValue {
             return
         }
         let msg = formatter.format(level: LogLevel.Warn, items: items, separator: self.seperator, terminator: self.terminator, file: file, line: line, function: function, date: Date())
@@ -84,7 +84,7 @@ public class Logger {
     }
     
     public func error(_ items: Any..., file: String = #file, line: Int = #line, function: String = #function) {
-        if logLevel.rawValue > LogLevel.Error.rawValue {
+        if LogLevel.Error.rawValue < self.logLevel.rawValue {
             return
         }
         let msg = formatter.format(level: LogLevel.Error, items: items, separator: self.seperator, terminator: self.terminator, file: file, line: line, function: function, date: Date())
@@ -92,7 +92,7 @@ public class Logger {
     }
     
     public func fatal(_ items: Any..., file: String = #file, line: Int = #line, function: String = #function) {
-        if logLevel.rawValue > LogLevel.Fatal.rawValue {
+        if LogLevel.Fatal.rawValue < self.logLevel.rawValue {
             return
         }
         let msg = formatter.format(level: LogLevel.Fatal, items: items, separator: self.seperator, terminator: self.terminator, file: file, line: line, function: function, date: Date())

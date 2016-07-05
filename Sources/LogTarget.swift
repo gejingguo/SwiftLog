@@ -40,7 +40,10 @@ public class FileLogTarget: LogTarget {
     ///init constructor
     public init(filePath: String) {
         self.filePath = filePath
-        self.fileHandle = FileHandle(forWritingAtPath: filePath)
+        self.fileHandle = FileHandle(forUpdatingAtPath: self.filePath)
+        if let fh = self.fileHandle {
+            fh.seekToEndOfFile()
+        }
     }
     
     public convenience init(filePath: String, maxFileSize: Int) {
@@ -58,8 +61,8 @@ public class FileLogTarget: LogTarget {
     ///target write implement
     public func write(str: String) {
         checkTransFile()
-        
         if fileHandle == nil {
+            print("new file")
             let fileManager = FileManager.default()
             if !fileManager.fileExists(atPath: filePath) {
                 do {
@@ -67,12 +70,18 @@ public class FileLogTarget: LogTarget {
                 } catch _ {
                 }
             }
-            fileHandle = FileHandle(forWritingAtPath: filePath)
+            fileHandle = FileHandle(forUpdatingAtPath: self.filePath)
         }
 
-        if let fh = fileHandle {
-            fh.seekToEndOfFile()
-            fh.write(str.data(using: String.Encoding.utf8)!)
+        if fileHandle != nil {
+            //fh.seekToEndOfFile()
+            //print("write log:", str)
+            let msg = str + "\n"
+            if let data = msg.data(using: String.Encoding.utf8) {
+                fileHandle?.write(data)
+                //fh.seekToEndOfFile()
+                print("fh fd:", fileHandle?.fileDescriptor, fileHandle)
+            }
         }
     }
     
@@ -83,6 +92,7 @@ public class FileLogTarget: LogTarget {
             if fileSize > UInt64(self.maxFileSize) {
                 transFile()
                 fh.truncateFile(atOffset: 0)
+                print("log truncate file.")
                 return
             }
         }
@@ -118,14 +128,14 @@ public class FileLogTarget: LogTarget {
     }
 }
 
-///date target type
-public enum DateFileLogTargetType {
-    case Daily
-    case Hourly
-}
 
 ///date file target support day file and hour file
 public class DateFileLogTarget: LogTarget {
+    ///date target type
+    public enum TargetType {
+        case Daily
+        case Hourly
+    }
     
     ///log file path
     public var filePath = ""
@@ -137,12 +147,13 @@ public class DateFileLogTarget: LogTarget {
     private var lastTransDate = Date()
     
     ///date type
-    public var dateType = DateFileLogTargetType.Daily
+    public var dateType = TargetType.Daily
     
     ///init constructor
-    public init(filePath: String) {
+    public init(filePath: String, dateType: TargetType) {
         self.filePath = filePath
         self.fileHandle = FileHandle(forWritingAtPath: filePath)
+        self.dateType = dateType
     }
     
     ///deinit
@@ -168,8 +179,9 @@ public class DateFileLogTarget: LogTarget {
         }
         
         if let fh = fileHandle {
-            fh.seekToEndOfFile()
-            fh.write(str.data(using: String.Encoding.utf8)!)
+            //fh.seekToEndOfFile()
+            let msg = str + "\n"
+            fh.write(msg.data(using: String.Encoding.utf8)!)
         }
     }
 
@@ -179,10 +191,12 @@ public class DateFileLogTarget: LogTarget {
         let date = Date()
         switch dateType {
         case .Daily:
-            needTrans = date.isInSameDay(date: lastTransDate)
+            print(#function, needTrans, ".Daily")
+            needTrans = !self.isInSameDay(date1: date, date2: lastTransDate)
             break
         case .Hourly:
-            needTrans = date.isInSameHour(date: lastTransDate)
+            needTrans = !self.isInSameHour(date1: date, date2: lastTransDate)
+            print(#function, needTrans, ".Hourly")
         }
         if needTrans {
             if let fh = fileHandle {
@@ -195,24 +209,49 @@ public class DateFileLogTarget: LogTarget {
     
     ///trans file
     func transFile() {
-        /*
-        lastTransExtNum = transNum
-        let newFilePath = "\(filePath).\(lastTransExtNum)"
-        let fileManager = NSFileManager.defaultManager()
+        
+        let newFilePath = "\(filePath).\(suffixName())"
+        let fileManager = FileManager.default()
         do {
-            try fileManager.copyItemAtPath(filePath, toPath: newFilePath)
+            try fileManager.copyItem(atPath: filePath, toPath: newFilePath)
         } catch _ {
-        }*/
+        }
+    }
+    
+    ///文件名后缀
+    func suffixName() -> String {
+        switch dateType {
+        case .Daily:
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            return dateFormatter.string(from: Date())
+        case .Hourly:
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd-HH"
+            return dateFormatter.string(from: Date())
+        }
     }
 }
 
-extension Date {
+private extension DateFileLogTarget {
     
-    func isInSameDay(date: Date) -> Bool {
-        return true
+    func isInSameDay(date1: Date, date2: Date) -> Bool {
+        return getDayIdStr(date: date1) == getDayIdStr(date: date2)
     }
     
-    func isInSameHour(date: Date) -> Bool {
-        return true
+    func isInSameHour(date1: Date, date2: Date) -> Bool {
+        return getHourIdStr(date: date1) == getHourIdStr(date: date2)
+    }
+    
+    func getDayIdStr(date: Date) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        return dateFormatter.string(from: date)
+    }
+    
+    func getHourIdStr(date: Date) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd-HH"
+        return dateFormatter.string(from: Date())
     }
 }
